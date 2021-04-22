@@ -44,8 +44,14 @@ if args.set_class_iou is not None:
 # make sure that the cwd() is the location of the python script (so that every path makes sense)
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
-GT_PATH = os.path.join(os.getcwd(), 'input', 'ground-truth')
-DR_PATH = os.path.join(os.getcwd(), 'input', 'detection-results')
+
+
+filter_name = ''
+#filter_name = 'LIDC'
+#filter_name = 'LNDb'
+GT_PATH = os.path.join(os.getcwd(), 'input', 'ground-truth2')
+DR_PATH = os.path.join(os.getcwd(), 'input/real/', '2_768/boxes')
+#DR_PATH = os.path.join(os.getcwd(), 'input', 'detection_results_all')
 # if there are no images then no animation can be shown
 IMG_PATH = os.path.join(os.getcwd(), 'input', 'images-optional')
 if os.path.exists(IMG_PATH): 
@@ -353,7 +359,17 @@ if show_animation:
      Create a list of all the class names present in the ground-truth (gt_classes).
 """
 # get a list with the ground-truth files
-ground_truth_files_list = glob.glob(GT_PATH + '/*.txt')
+
+
+#filtering dataset
+ground_truth_files_list_temp = glob.glob(GT_PATH + '/*.txt')
+ground_truth_files_list = []
+for xcv in ground_truth_files_list_temp:
+    if filter_name in xcv:
+        ground_truth_files_list.append(xcv)
+
+#error(len(ground_truth_files_list))
+
 if len(ground_truth_files_list) == 0:
     error("Error: No ground-truth files found!")
 ground_truth_files_list.sort()
@@ -458,7 +474,14 @@ if specific_iou_flagged:
      Load each of the detection-results files into a temporary ".json" file.
 """
 # get a list with the detection-results files
-dr_files_list = glob.glob(DR_PATH + '/*.txt')
+
+dr_files_list_temp = glob.glob(DR_PATH + '/*.txt')
+dr_files_list = []
+for xcv in dr_files_list_temp:
+    if filter_name in xcv:
+        dr_files_list.append(xcv)
+
+#error(len(dr_files_list))
 dr_files_list.sort()
 
 for class_index, class_name in enumerate(gt_classes):
@@ -478,6 +501,11 @@ for class_index, class_name in enumerate(gt_classes):
         for line in lines:
             try:
                 tmp_class_name, confidence, left, top, right, bottom = line.split()
+                ###############################################################################################################################################################
+                ###############################################################################################################################################################
+                ###############################################################################################################################################################
+                #if float(confidence) < 0.6:
+                #    continue
             except ValueError:
                 error_msg = "Error: File " + txt_file + " in the wrong format.\n"
                 error_msg += " Expected: <class_name> <confidence> <left> <top> <right> <bottom>\n"
@@ -664,12 +692,27 @@ with open(output_files_path + "/output.txt", 'w') as output_file:
             cumsum += val
         #print(tp)
         rec = tp[:]
+        #print("-------------------")
+        #print(tp)
+        #print(len(tp))
+        #print("-------------------")
+        #print(fp)
+        #print(len(fp))
+        ################
+        #tn = []
+        #for fff in fp:
+        #    tn.append(58-fff)
+        #print(tn)
+        #print("-------------------")
         for idx, val in enumerate(tp):
             rec[idx] = float(tp[idx]) / gt_counter_per_class[class_name]
         #print(rec)
         prec = tp[:]
+        max_tn = float(max(fp))
+        print(max_tn)
         for idx, val in enumerate(tp):
             prec[idx] = float(tp[idx]) / (fp[idx] + tp[idx])
+            #tn.append(float(fp[idx]) / ((fp[idx]*0)+max_tn))
         #print(prec)
 
         ap, mrec, mprec = voc_ap(rec[:], prec[:])
@@ -678,6 +721,10 @@ with open(output_files_path + "/output.txt", 'w') as output_file:
         """
          Write to output.txt
         """
+        #plt.plot(tn,rec, '-o')
+        #plt.show()
+        #rounded_tn = [ '%.2f' % elem for elem in tn ]
+        #print(len(rounded_tn))
         rounded_prec = [ '%.2f' % elem for elem in prec ]
         rounded_rec = [ '%.2f' % elem for elem in rec ]
         output_file.write(text + "\n Precision: " + str(rounded_prec) + "\n Recall :" + str(rounded_rec) + "\n\n")
@@ -753,7 +800,7 @@ if show_animation:
         cv2.imwrite(img_cumulative_path, img)
 
 # remove the temp_files directory
-shutil.rmtree(TEMP_FILES_PATH)
+#shutil.rmtree(TEMP_FILES_PATH)
 
 """
  Count total of detection-results
@@ -856,7 +903,13 @@ with open(output_files_path + "/output.txt", 'a') as output_file:
         text = class_name + ": " + str(n_det)
         text += " (tp:" + str(count_true_positives[class_name]) + ""
         text += ", fp:" + str(n_det - count_true_positives[class_name]) + ")\n"
+        print(filter_name+" Total: "+str(gt_counter_per_class[class_name])+" Detected "+str(n_det) + " (tp:" + str(count_true_positives[class_name]) + ", fp:" + str(n_det - count_true_positives[class_name]) + ")")
+        print("Precision: "+str(count_true_positives[class_name]/n_det))
+        print("Recall: "+str(count_true_positives[class_name]/gt_counter_per_class[class_name]))
         output_file.write(text)
+
+error("")
+#prevent graph drawing
 
 """
  Draw log-average miss rate plot (Show lamr of all classes in decreasing order)
